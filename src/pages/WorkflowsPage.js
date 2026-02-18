@@ -1,85 +1,194 @@
 import React, { useState } from 'react';
+import { useWorkflows } from '../hooks/useRealData';
 
-const WORKFLOWS = [
-  { id: 1, name: 'Daily Viral Video Tracker', status: 'active', schedule: 'Every day 8:00 AM', lastRun: new Date(Date.now() - 7200000).toISOString(), runs: 45, successRate: 98, category: 'research' },
-  { id: 2, name: 'AI Video Recreation Pipeline', status: 'active', schedule: 'On demand', lastRun: new Date(Date.now() - 300000).toISOString(), runs: 12, successRate: 92, category: 'video' },
-  { id: 3, name: 'Instagram Carousel Generator', status: 'active', schedule: 'On demand', lastRun: new Date(Date.now() - 600000).toISOString(), runs: 28, successRate: 100, category: 'image' },
-  { id: 4, name: 'YouTube Shorts Auto-Producer', status: 'paused', schedule: 'Mon/Wed/Fri 10:00', lastRun: new Date(Date.now() - 86400000).toISOString(), runs: 19, successRate: 89, category: 'video' },
-  { id: 5, name: 'Brand Image Generator', status: 'active', schedule: 'On demand', lastRun: new Date(Date.now() - 1200000).toISOString(), runs: 67, successRate: 97, category: 'image' },
-  { id: 6, name: 'Caption & Hashtag Generator', status: 'active', schedule: 'On demand', lastRun: new Date(Date.now() - 3600000).toISOString(), runs: 134, successRate: 100, category: 'text' },
-  { id: 7, name: 'Cross-Platform Repurposer', status: 'active', schedule: 'On demand', lastRun: new Date(Date.now() - 1800000).toISOString(), runs: 23, successRate: 96, category: 'distribution' },
-  { id: 8, name: 'AI Voiceover Video Creator', status: 'paused', schedule: 'On demand', lastRun: new Date(Date.now() - 172800000).toISOString(), runs: 8, successRate: 100, category: 'video' },
-  { id: 9, name: 'TikTok Trend Pipeline', status: 'active', schedule: 'Every 6 hours', lastRun: new Date(Date.now() - 21600000).toISOString(), runs: 31, successRate: 90, category: 'research' },
-  { id: 10, name: 'Weekly Content Calendar', status: 'active', schedule: 'Sunday 6:00 PM', lastRun: new Date(Date.now() - 432000000).toISOString(), runs: 8, successRate: 100, category: 'planning' },
-  { id: 11, name: 'Local Provider Router', status: 'active', schedule: 'Always on', lastRun: new Date().toISOString(), runs: 289, successRate: 99, category: 'routing' },
-  { id: 12, name: 'Local Image Pipeline', status: 'active', schedule: 'On demand', lastRun: new Date(Date.now() - 900000).toISOString(), runs: 56, successRate: 95, category: 'image' },
-  { id: 13, name: 'Local Video Pipeline', status: 'active', schedule: 'On demand', lastRun: new Date(Date.now() - 300000).toISOString(), runs: 18, successRate: 94, category: 'video' },
-  { id: 14, name: 'Local Chat Pipeline', status: 'active', schedule: 'Always on', lastRun: new Date().toISOString(), runs: 412, successRate: 99, category: 'routing' },
-];
+function StatusDot({ active }) {
+  return (
+    <span style={{ color: active ? '#10b981' : '#f59e0b', fontSize: 13, fontWeight: 600 }}>
+      {active ? '● active' : '○ inactive'}
+    </span>
+  );
+}
 
-const STATUS_COLORS = { active: '#10b981', paused: '#f59e0b', error: '#ef4444' };
-const CATEGORY_COLORS = { research: '#6366f1', video: '#06b6d4', image: '#8b5cf6', text: '#10b981', distribution: '#f59e0b', planning: '#ec4899', routing: '#64748b' };
+function N8nOfflineBanner({ url }) {
+  return (
+    <div style={styles.banner}>
+      <span style={styles.bannerIcon}>⚠️</span>
+      <div>
+        <strong style={{ color: '#fcd34d' }}>n8n is not reachable</strong>
+        <p style={styles.bannerText}>
+          Make sure n8n is running at <code style={styles.code}>{url || 'http://localhost:5678'}</code>.
+          If you just started it, wait a few seconds and refresh.
+        </p>
+        <p style={styles.bannerText}>
+          If your n8n requires an API key, add it to <code style={styles.code}>backend/.env</code> → <code style={styles.code}>N8N_API_KEY=your_key</code>
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function WorkflowsPage() {
-  const [filter, setFilter] = useState('all');
+  const { workflows, loading, error, n8nOnline, refetch, activate, deactivate, triggerRun } = useWorkflows();
+  const [triggering, setTriggering] = useState(null);
+  const [toggling, setToggling] = useState(null);
+  const [toast, setToast] = useState(null);
 
-  const categories = ['all', ...new Set(WORKFLOWS.map(w => w.category))];
-  const filtered = WORKFLOWS.filter(w => filter === 'all' || w.category === filter);
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleToggle = async (wf) => {
+    setToggling(wf.id);
+    try {
+      if (wf.active) await deactivate(wf.id);
+      else await activate(wf.id);
+      showToast(`Workflow "${wf.name}" ${wf.active ? 'deactivated' : 'activated'}`);
+    } catch {
+      showToast('Failed to toggle workflow', 'error');
+    } finally {
+      setToggling(null);
+    }
+  };
+
+  const handleRun = async (wf) => {
+    setTriggering(wf.id);
+    try {
+      await triggerRun(wf.id);
+      showToast(`Workflow "${wf.name}" triggered`);
+    } catch (e) {
+      showToast(e.response?.data?.error || 'Failed to trigger workflow', 'error');
+    } finally {
+      setTriggering(null);
+    }
+  };
 
   return (
     <div style={styles.page}>
-      <h1 style={styles.title}>Workflows</h1>
-
-      <div style={styles.filters}>
-        {categories.map(c => (
-          <button
-            key={c}
-            onClick={() => setFilter(c)}
-            style={{ ...styles.filterBtn, ...(filter === c ? styles.filterBtnActive : {}) }}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-
-      <div style={styles.table}>
-        <div style={styles.tableHeader}>
-          <span style={{ flex: 2 }}>Name</span>
-          <span style={{ width: 90 }}>Status</span>
-          <span style={{ width: 100 }}>Category</span>
-          <span style={{ width: 180 }}>Schedule</span>
-          <span style={{ width: 80, textAlign: 'right' }}>Runs</span>
-          <span style={{ width: 100, textAlign: 'right' }}>Success</span>
-          <span style={{ width: 140, textAlign: 'right' }}>Last Run</span>
+      <div style={styles.header}>
+        <div>
+          <h1 style={styles.title}>Workflows</h1>
+          <p style={styles.sub}>
+            {n8nOnline
+              ? `${workflows.length} workflows loaded from n8n · http://localhost:5678`
+              : 'Connecting to n8n...'}
+          </p>
         </div>
-
-        {filtered.map(wf => (
-          <div key={wf.id} style={styles.tableRow}>
-            <span style={{ flex: 2, color: '#f1f5f9', fontSize: 14, fontWeight: 500 }}>{wf.name}</span>
-            <span style={{ width: 90 }}>
-              <span style={{ color: STATUS_COLORS[wf.status], fontSize: 13, fontWeight: 600 }}>● {wf.status}</span>
-            </span>
-            <span style={{ width: 100 }}>
-              <span style={{ background: `${CATEGORY_COLORS[wf.category]}22`, color: CATEGORY_COLORS[wf.category], fontSize: 11, padding: '2px 8px', borderRadius: 20 }}>{wf.category}</span>
-            </span>
-            <span style={{ width: 180, color: '#64748b', fontSize: 12 }}>{wf.schedule}</span>
-            <span style={{ width: 80, textAlign: 'right', color: '#94a3b8', fontSize: 13 }}>{wf.runs}</span>
-            <span style={{ width: 100, textAlign: 'right', color: wf.successRate >= 95 ? '#10b981' : wf.successRate >= 85 ? '#f59e0b' : '#ef4444', fontSize: 13, fontWeight: 600 }}>{wf.successRate}%</span>
-            <span style={{ width: 140, textAlign: 'right', color: '#64748b', fontSize: 12 }}>{new Date(wf.lastRun).toLocaleTimeString()}</span>
-          </div>
-        ))}
+        <div style={styles.headerRight}>
+          <span style={{ ...styles.statusChip, background: n8nOnline ? '#10b98122' : '#f59e0b22', color: n8nOnline ? '#10b981' : '#f59e0b' }}>
+            {n8nOnline ? '● n8n online' : '○ n8n offline'}
+          </span>
+          <button style={styles.refreshBtn} onClick={refetch}>↺ Refresh</button>
+          <a href="http://localhost:5678" target="_blank" rel="noreferrer" style={styles.openBtn}>
+            Open n8n ↗
+          </a>
+        </div>
       </div>
+
+      {!n8nOnline && <N8nOfflineBanner />}
+
+      {loading && (
+        <div style={styles.loading}>Loading workflows from n8n...</div>
+      )}
+
+      {!loading && n8nOnline && workflows.length === 0 && (
+        <div style={styles.empty}>
+          <div style={styles.emptyIcon}>🔄</div>
+          <div style={styles.emptyTitle}>No workflows yet</div>
+          <p style={styles.emptyText}>Import workflows from the <code style={styles.code}>n8n-exports/</code> folder in your automation project.</p>
+          <a href="http://localhost:5678" target="_blank" rel="noreferrer" style={styles.openBtn}>Open n8n to import ↗</a>
+        </div>
+      )}
+
+      {!loading && workflows.length > 0 && (
+        <div style={styles.table}>
+          <div style={styles.tableHeader}>
+            <span style={{ flex: 2 }}>Name</span>
+            <span style={{ width: 120 }}>Status</span>
+            <span style={{ width: 80, textAlign: 'center' }}>Nodes</span>
+            <span style={{ width: 180 }}>Updated</span>
+            <span style={{ width: 80, textAlign: 'center' }}>Tags</span>
+            <span style={{ width: 180, textAlign: 'right' }}>Actions</span>
+          </div>
+
+          {workflows.map(wf => (
+            <div key={wf.id} style={styles.tableRow}>
+              <span style={{ flex: 2 }}>
+                <div style={styles.wfName}>{wf.name}</div>
+                <div style={styles.wfId}>ID: {wf.id}</div>
+              </span>
+              <span style={{ width: 120 }}>
+                <StatusDot active={wf.active} />
+              </span>
+              <span style={{ width: 80, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                {wf.nodeCount}
+              </span>
+              <span style={{ width: 180, color: '#64748b', fontSize: 12 }}>
+                {wf.updatedAt ? new Date(wf.updatedAt).toLocaleString() : '—'}
+              </span>
+              <span style={{ width: 80, textAlign: 'center' }}>
+                {wf.tags?.length > 0 && (
+                  <span style={styles.tag}>{wf.tags[0]}</span>
+                )}
+              </span>
+              <span style={{ width: 180, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                <button
+                  style={{ ...styles.actionBtn, ...(wf.active ? styles.deactivateBtn : styles.activateBtn) }}
+                  onClick={() => handleToggle(wf)}
+                  disabled={toggling === wf.id}
+                >
+                  {toggling === wf.id ? '...' : wf.active ? 'Deactivate' : 'Activate'}
+                </button>
+                <button
+                  style={{ ...styles.actionBtn, ...styles.runBtn }}
+                  onClick={() => handleRun(wf)}
+                  disabled={triggering === wf.id || !wf.active}
+                  title={!wf.active ? 'Activate workflow first' : 'Trigger workflow now'}
+                >
+                  {triggering === wf.id ? '...' : '▶ Run'}
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {toast && (
+        <div style={{ ...styles.toast, background: toast.type === 'error' ? '#450a0a' : '#052e16', borderColor: toast.type === 'error' ? '#991b1b' : '#166534' }}>
+          <span style={{ color: toast.type === 'error' ? '#fca5a5' : '#86efac' }}>{toast.msg}</span>
+        </div>
+      )}
     </div>
   );
 }
 
 const styles = {
   page: { padding: 32, color: '#f1f5f9', height: '100vh', overflowY: 'auto' },
-  title: { fontSize: 26, fontWeight: 700, marginBottom: 20 },
-  filters: { display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' },
-  filterBtn: { background: 'transparent', border: '1px solid #334155', borderRadius: 20, color: '#64748b', cursor: 'pointer', fontSize: 13, padding: '6px 16px', textTransform: 'capitalize' },
-  filterBtnActive: { background: '#6366f122', borderColor: '#6366f1', color: '#a5b4fc' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  title: { fontSize: 26, fontWeight: 700, marginBottom: 4 },
+  sub: { color: '#64748b', fontSize: 13 },
+  headerRight: { display: 'flex', alignItems: 'center', gap: 10 },
+  statusChip: { fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 20 },
+  refreshBtn: { background: '#334155', border: 'none', borderRadius: 8, color: '#f1f5f9', cursor: 'pointer', fontSize: 13, padding: '8px 14px' },
+  openBtn: { background: '#6366f1', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, padding: '8px 14px', textDecoration: 'none', display: 'inline-block' },
+  banner: { background: '#1c1a09', border: '1px solid #854d0e', borderRadius: 12, padding: '16px 20px', marginBottom: 24, display: 'flex', gap: 14, alignItems: 'flex-start' },
+  bannerIcon: { fontSize: 22, marginTop: 2 },
+  bannerText: { color: '#d97706', fontSize: 13, margin: '4px 0 0' },
+  code: { background: '#0f172a', padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 12 },
+  loading: { color: '#64748b', fontSize: 15, padding: '40px 0', textAlign: 'center' },
+  empty: { textAlign: 'center', padding: '60px 0' },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyTitle: { fontSize: 20, fontWeight: 600, color: '#f1f5f9', marginBottom: 8 },
+  emptyText: { color: '#64748b', fontSize: 14, marginBottom: 16 },
   table: { background: '#1e293b', borderRadius: 12, border: '1px solid #334155' },
-  tableHeader: { display: 'flex', alignItems: 'center', padding: '12px 20px', background: '#0f172a', borderRadius: '12px 12px 0 0', color: '#64748b', fontSize: 12, fontWeight: 600, gap: 0 },
-  tableRow: { display: 'flex', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid #1e293b', gap: 0 },
+  tableHeader: { display: 'flex', alignItems: 'center', padding: '12px 20px', background: '#0f172a', borderRadius: '12px 12px 0 0', color: '#64748b', fontSize: 12, fontWeight: 600 },
+  tableRow: { display: 'flex', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid #0f172a' },
+  wfName: { color: '#f1f5f9', fontSize: 14, fontWeight: 500 },
+  wfId: { color: '#475569', fontSize: 11, marginTop: 2 },
+  tag: { background: '#6366f122', color: '#a5b4fc', fontSize: 11, padding: '2px 8px', borderRadius: 20 },
+  actionBtn: { border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 500, padding: '5px 10px' },
+  activateBtn: { background: '#10b98122', color: '#10b981' },
+  deactivateBtn: { background: '#f59e0b22', color: '#f59e0b' },
+  runBtn: { background: '#6366f122', color: '#a5b4fc' },
+  toast: { position: 'fixed', bottom: 24, right: 24, border: '1px solid', borderRadius: 10, padding: '12px 20px', fontSize: 14, zIndex: 999 },
 };

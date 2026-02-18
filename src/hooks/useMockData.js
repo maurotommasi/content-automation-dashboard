@@ -54,7 +54,7 @@ const MOCK_STATS = {
 export function useMockData() {
   const [agents, setAgents] = useState(MOCK_AGENTS);
   const [logs, setLogs] = useState(MOCK_LOGS);
-  const [files, setFiles] = useState(MOCK_FILES);
+  const [files] = useState(MOCK_FILES);
   const [stats] = useState(MOCK_STATS);
 
   // Simulate live updates

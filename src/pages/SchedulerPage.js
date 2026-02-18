@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Twitter/X', 'LinkedIn'];
-const CONTENT_TYPES = ['Reel/Short', 'Static Post', 'Carousel', 'Story', 'Long Video'];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const DEFAULT_SCHEDULE = {
