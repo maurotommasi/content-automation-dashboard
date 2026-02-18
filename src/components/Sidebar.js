@@ -10,6 +10,7 @@ const NAV = [
   { path: '/scheduler', icon: '📅', label: 'Post Scheduler' },
   { path: '/providers', icon: '⚙️', label: 'Providers' },
   { path: '/workflows', icon: '🔄', label: 'Workflows' },
+  { path: '/settings', icon: '🔑', label: 'Settings & Keys' },
 ];
 
 export default function Sidebar() {

@@ -14,6 +14,7 @@ app.use('/api/n8n', require('./routes/n8n'));
 app.use('/api/providers', require('./routes/providers'));
 app.use('/api/openclaw', require('./routes/openclaw'));
 app.use('/api/ollama', require('./routes/ollama'));
+app.use('/api/settings', require('./routes/settings'));
 
 // GET /api/status — overall system health summary
 app.get('/api/status', async (req, res) => {
