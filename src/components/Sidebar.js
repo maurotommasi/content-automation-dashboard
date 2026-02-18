@@ -7,6 +7,7 @@ const NAV = [
   { path: '/agents', icon: '🤖', label: 'Agents' },
   { path: '/logs', icon: '📋', label: 'Activity Logs' },
   { path: '/files', icon: '🗂️', label: 'Generated Files' },
+  { path: '/scheduler', icon: '📅', label: 'Post Scheduler' },
   { path: '/providers', icon: '⚙️', label: 'Providers' },
   { path: '/workflows', icon: '🔄', label: 'Workflows' },
 ];

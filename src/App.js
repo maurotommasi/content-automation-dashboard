@@ -9,6 +9,7 @@ import LogsPage from './pages/LogsPage';
 import FilesPage from './pages/FilesPage';
 import ProvidersPage from './pages/ProvidersPage';
 import WorkflowsPage from './pages/WorkflowsPage';
+import SchedulerPage from './pages/SchedulerPage';
 
 function ProtectedLayout({ children }) {
   const { user, loading } = useAuth();
@@ -33,6 +34,7 @@ function AppRoutes() {
       <Route path="/files" element={<ProtectedLayout><FilesPage /></ProtectedLayout>} />
       <Route path="/providers" element={<ProtectedLayout><ProvidersPage /></ProtectedLayout>} />
       <Route path="/workflows" element={<ProtectedLayout><WorkflowsPage /></ProtectedLayout>} />
+      <Route path="/scheduler" element={<ProtectedLayout><SchedulerPage /></ProtectedLayout>} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
